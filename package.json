@@ -1,0 +1,9 @@
+{
+  "name": "shape-flow-lab",
+  "private": true,
+  "type": "module",
+  "description": "Interactive boundary flow and shape prior laboratory",
+  "scripts": {
+    "test": "node tests/ui-check.mjs && node tests/ui-check.mjs --portrait"
+  }
+}
