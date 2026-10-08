@@ -1,9 +1,19 @@
 {
-  "name": "shape-flow-lab",
+  "name": "manifold",
   "private": true,
   "type": "module",
-  "description": "Interactive boundary flow and shape prior laboratory",
+  "description": "React-based interactive boundary flow and shape prior laboratory",
   "scripts": {
-    "test": "node tests/ui-check.mjs && node tests/ui-check.mjs --portrait"
-  }
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.7"
+  },
+  "engines": { "node": ">=20.19.0" }
 }
