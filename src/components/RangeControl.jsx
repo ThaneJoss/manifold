@@ -1,5 +1,13 @@
 import { useRef } from 'react';
 
+/**
+ * @param {Omit<import('react').InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'min' | 'max' | 'step'> & {
+ *   id: string, outputId: string, label: string, value: number,
+ *   min: number, max: number, step: number, output: import('react').ReactNode,
+ *   onChange: (value: number) => void, onCommit?: (value: number) => void,
+ *   ends?: string[]
+ * }} props
+ */
 export default function RangeControl({
   id, outputId, label, value, min, max, step, output,
   onChange, onCommit, className = '', ends, ...inputProps
@@ -26,7 +34,7 @@ export default function RangeControl({
         max={max}
         step={step}
         value={value}
-        style={{ '--pct': `${((value - min) / (max - min)) * 100}%` }}
+        style={/** @type {import('react').CSSProperties} */ ({ '--pct': `${((value - min) / (max - min)) * 100}%` })}
         onChange={event => {
           pendingCommit.current = Boolean(onCommit);
           onChange(Number(event.currentTarget.value));

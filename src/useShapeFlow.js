@@ -5,11 +5,12 @@ import { renderScene, resizeCanvas } from './renderScene.js';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const resolution = value => clamp(Math.round(Number(value) / 30) * 30, 60, 480);
 const emptyMetrics = { shapes: [], shapeCount: 1, fieldCount: 0, time: 0, areaRatio: 1, roundness: 1, kl: 0, blockedSteps: 0, lastBlocked: false };
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function initialState() {
   return {
     mode: 'arrow',
-    playing: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    playing: !prefersReducedMotion(),
     panel: null,
     selectedShapeId: 'shape-1',
     selectedFieldId: null,
@@ -165,7 +166,7 @@ export function useShapeFlow() {
     sim.reset();
     hoverRef.current = null;
     patch({
-      mode: 'arrow', playing: true, panel: null,
+      mode: 'arrow', playing: !prefersReducedMotion(), panel: null,
       selectedShapeId: sim.shapes[0].id, selectedFieldId: null,
       priorStrength: 1, drawResolution: 120, surfaceResolution: 120, fieldResolution: 24,
       newFieldStrength: 1.2, newFieldRadius: 140,
