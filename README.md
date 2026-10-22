@@ -56,7 +56,7 @@ npm run preview  # 预览构建结果
 | `vite.config.js` | Vite 构建配置 |
 | `src/physics.test.js` | 无外部服务的物理核心回归测试 |
 | `tests/e2e/` | 桌面和手机 Chromium 交互与 axe 检查 |
-| `.github/workflows/ci.yml` | 固定 SHA 的通用 CI 调用 |
+| `.github/workflows/ci.yml` | 跟随 `github-ci/main` 的通用 CI 调用 |
 
 构建产物 `dist/` 不纳入源码提交，可部署到静态网页托管服务。
 
@@ -73,7 +73,7 @@ npm run test:e2e
 
 浏览器检查使用已构建的 `dist/`，自动启动本地预览服务。Linux 环境首次运行若缺少系统库，使用 `npx playwright install --with-deps chromium`。
 
-每次 push、PR（含 draft）、合并队列和手动触发均调用固定提交 `89624ba02d911171a634ddeb4848c298f3b1c842` 的 [通用 CI](https://github.com/ThaneJoss/github-ci/blob/89624ba02d911171a634ddeb4848c298f3b1c842/.github/workflows/ci.yml)。模板根据项目元数据自动执行冻结依赖安装、lint、类型检查、物理单元测试、构建、JavaScript 语法检查和依赖审计；调用文件只授予 `contents: read` 权限。
+每次 push、PR（含 draft）、合并队列和手动触发均以 `@main` 调用 [通用 CI](https://github.com/ThaneJoss/github-ci/blob/main/.github/workflows/ci.yml)。每次新运行使用当时 `main` 的版本，实际解析的提交以运行记录为准。模板根据项目元数据自动执行冻结依赖安装、lint、类型检查、物理单元测试、构建、JavaScript 语法检查和依赖审计；调用文件只授予 `contents: read` 权限。
 
 通用 CI 不自动执行 `test:e2e`，也不安装 Chromium 或上传浏览器报告。桌面 / 手机交互与 axe 检查需按上述命令单独运行；报告保存在本地 `playwright-report/`，失败截图与 trace 保存在 `test-results/`。这些检查不依赖凭据，不运行部署、线上写入或外部付费服务。
 
