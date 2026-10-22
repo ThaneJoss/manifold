@@ -56,7 +56,7 @@ npm run preview  # 预览构建结果
 | `vite.config.js` | Vite 构建配置 |
 | `src/physics.test.js` | 无外部服务的物理核心回归测试 |
 | `tests/e2e/` | 桌面和手机 Chromium 交互与 axe 检查 |
-| `.github/workflows/ci.yml` | 固定 SHA 的通用 CI 调用 |
+| `.github/workflows/ci.yml` | 跟随 `github-ci/main` 的通用 CI 调用 |
 
 构建产物 `dist/` 不纳入源码提交，可部署到静态网页托管服务。
 
