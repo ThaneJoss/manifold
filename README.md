@@ -4,10 +4,10 @@
 
 ## 运行
 
-使用 Node.js 20.19+ 或 22.12+：
+使用 Node.js 24 LTS（CI 固定版本见 `.node-version`）和 npm 11：
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
@@ -18,6 +18,8 @@ npm run build    # 生成 dist/ 静态网页
 npm run preview  # 预览构建结果
 ```
 
+界面延续 [Web Apps](https://github.com/ThaneJoss/webapps) 的灰白底、蓝色强调、字体与焦点样式；画布中的绿 / 蓝 / 橙仍分别表示表面张力、KL 先验和局部速度场。
+
 ## 操作
 
 - **画笔（B）**：拖动绘制闭合轮廓，松手后保存为 KL 参考形状。
@@ -25,6 +27,8 @@ npm run preview  # 预览构建结果
 - **垃圾桶**：恢复默认圆盘、参数和分辨率。
 - **空格**：暂停或继续；关闭“外力”观察先验回复，开启“初始轮廓”对比形变。
 - **Delete / Backspace**：删除选中的速度场；**Esc**：取消当前操作。
+- **减少动态效果**：遵循系统偏好，首次打开和重置后保持暂停，可手动点击“继续”。
+- 控件支持键盘焦点及原生滑杆方向键；自由绘制和箭头拖动仍需要鼠标、触控或指针设备。自动无障碍检查不代表画布操作已完整支持屏幕阅读器。
 
 | 分辨率 | 范围 / 默认 | 作用 |
 | --- | --- | --- |
@@ -50,5 +54,29 @@ npm run preview  # 预览构建结果
 | `src/physics.js` | 边界、先验、速度场和数值演化 |
 | `src/styles.css` | 响应式样式 |
 | `vite.config.js` | Vite 构建配置 |
+| `src/physics.test.js` | 无外部服务的物理核心回归测试 |
+| `tests/e2e/` | 桌面和手机 Chromium 交互与 axe 检查 |
+| `.github/workflows/ci.yml` | 固定 SHA 的通用 CI 调用 |
 
 构建产物 `dist/` 不纳入源码提交，可部署到静态网页托管服务。
+
+## 检查与 CI
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+浏览器检查使用已构建的 `dist/`，自动启动本地预览服务。Linux 环境首次运行若缺少系统库，使用 `npx playwright install --with-deps chromium`。
+
+每次 push、PR（含 draft）、合并队列和手动触发均调用固定提交 `89624ba02d911171a634ddeb4848c298f3b1c842` 的 [通用 CI](https://github.com/ThaneJoss/github-ci/blob/89624ba02d911171a634ddeb4848c298f3b1c842/.github/workflows/ci.yml)。模板根据项目元数据自动执行冻结依赖安装、lint、类型检查、物理单元测试、构建、JavaScript 语法检查和依赖审计；调用文件只授予 `contents: read` 权限。
+
+通用 CI 不自动执行 `test:e2e`，也不安装 Chromium 或上传浏览器报告。桌面 / 手机交互与 axe 检查需按上述命令单独运行；报告保存在本地 `playwright-report/`，失败截图与 trace 保存在 `test-results/`。这些检查不依赖凭据，不运行部署、线上写入或外部付费服务。
+
+类型门禁通过 TypeScript 的 `checkJs` 检查现有 JavaScript / JSX、配置和测试，保留 JavaScript 项目结构；当前未启用严格空值和隐式 any 检查。控件参数及核心几何类型使用 JSDoc，复杂交互仍由浏览器测试覆盖。TypeScript 暂用 6.x，以兼容 ESLint React 插件的编译器 API；依赖按锁文件安装，升级时一起提交 `package.json` 和 `package-lock.json`。
+
+单元测试覆盖碰撞保护、非法轮廓拒绝、分辨率变更与回滚、面积守恒及 KL 回复。浏览器测试覆盖分辨率键盘提交、场的增删、模型对话框焦点、减少动态效果、320px 窄屏开关和 axe 扫描。CI 不含 GPU、数据集下载或长时数值实验；没有全局微分同胚证明或长期稳定性保证。

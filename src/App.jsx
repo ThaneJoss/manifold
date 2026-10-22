@@ -30,6 +30,7 @@ export default function App() {
 
   return (
     <>
+      <a className="skip-link" href="#experiment">跳到交互实验</a>
       <header className="app-header">
         <a className="brand" href="./" aria-label="形流实验室首页">
           <span className="brand-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7 23C0 15 8 3 18 6s13 10 6 18S11 32 7 23Z" stroke="currentColor" strokeWidth="1.6" /><path d="M10 20C6 14 12 7 19 11s8 9 2 12-9 2-11-3Z" stroke="currentColor" strokeWidth="1.2" /></svg></span>
@@ -37,7 +38,7 @@ export default function App() {
         </a>
         <div className="header-right"><span className="lab-label"><span /> 交互实验室 / 001</span><button type="button" className="text-button" id="aboutButton" onClick={actions.openAbout}><Icon name="info" />模型说明</button></div>
       </header>
-      <main>
+      <main id="experiment" tabIndex={-1}>
         <section className="intro">
           <div><div className="eyebrow">GEOMETRY IN MOTION</div><h1>让形状，随场而动<span>。</span></h1><p>绘制一个连通域，用局部速度场探索形变与先验之间的平衡。</p></div>
           <div className="intro-note"><span className="mini-diagram"><i /><Icon name="arrow" /><i /></span><span>自由变形<br /><b>保留形状的来处</b></span></div>
@@ -57,7 +58,7 @@ export default function App() {
               <span className="shape-swatch" id="shapeSwatch" style={{ background: isSurface ? '#ccdebf' : '#d6e5f0', borderColor: isSurface ? '#719664' : '#7c9dbf' }} />
               <h2 id="shapeName">{isSurface ? '初始圆盘' : '手绘形状'}</h2><span className="shape-id" id="shapeId">{String((selectedShape?.index ?? 0) + 1).padStart(2, '0')}</span>
             </div>
-            <div className="prior-badge" id="priorBadge" style={{ color: isSurface ? '#769067' : '#789ab5', background: isSurface ? '#eaf0e3' : '#eaf1f6' }}>{isSurface ? '表面张力 + 面积约束' : 'KL 散度 · 初始形状先验'}</div>
+            <div className={`prior-badge ${isSurface ? 'surface-badge' : 'kl-badge'}`} id="priorBadge">{isSurface ? '表面张力 + 面积约束' : 'KL 散度 · 初始形状先验'}</div>
             <p className="prior-description" id="priorDescription">{isSurface ? '边界趋向平滑，在固定面积下回到圆形。' : '以初始边界为参考，抑制形变与位置偏移。'}</p>
             <div className="metric-pair">
               <div><label id="metricOneLabel">{isSurface ? '圆度' : 'KL 散度'}</label><strong id="metricOne">{(isSurface ? (shapeMetrics?.roundness ?? 1) : (shapeMetrics?.kl ?? 0)).toFixed(3)}</strong></div>

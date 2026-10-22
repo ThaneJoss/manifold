@@ -7,17 +7,52 @@
  * those checks are practical safeguards, not a proof of a global diffeomorphism.
  */
 
+/** @typedef {{ x: number, y: number }} Point */
+/** @typedef {Point | [number, number]} PointInput */
+/** @typedef {Point & { dx?: number, dy?: number, strength?: number, radius?: number }} FieldInput */
+/** @typedef {Point & { id: string, dx: number, dy: number, strength: number, radius: number }} Field */
+/**
+ * @typedef {object} Shape
+ * @property {string} id
+ * @property {'surface' | 'kl'} kind
+ * @property {Point[]} points
+ * @property {Point[]} reference
+ * @property {number} initialArea
+ * @property {number} initialPerimeter
+ * @property {Point} initialCentroid
+ * @property {number} minEdge
+ */
+/**
+ * @typedef {object} SimulationSettings
+ * @property {number} priorStrength
+ * @property {boolean} fieldsEnabled
+ * @property {number} surfaceTension
+ * @property {number} klRate
+ * @property {number} klSigma
+ * @property {number} sampleCount
+ * @property {number} drawResolution
+ * @property {number} clearance
+ */
+/** @typedef {{ cx?: number, cy?: number, radius?: number }} CircleOptions */
+/** @typedef {CircleOptions & { width?: number, height?: number, settings?: Partial<SimulationSettings> }} SimulationOptions */
+
 const EPS = 1e-8;
 const TAU = Math.PI * 2;
+/** @param {number} x @param {number} a @param {number} b */
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+/** @param {Point} p */
 const copy = (p) => ({ x: p.x, y: p.y });
+/** @param {Point} a @param {Point} b */
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+/** @param {Point} p */
 const finitePoint = (p) => Number.isFinite(p.x) && Number.isFinite(p.y);
 
+/** @param {PointInput} p */
 function asPoint(p) {
   return Array.isArray(p) ? { x: Number(p[0]), y: Number(p[1]) } : { x: Number(p.x), y: Number(p.y) };
 }
 
+/** @param {Point[]} points */
 export function signedArea(points) {
   let sum = 0;
   for (let i = 0, n = points.length; i < n; i++) {
@@ -27,14 +62,17 @@ export function signedArea(points) {
   return sum / 2;
 }
 
+/** @param {Point[]} points */
 export function polygonArea(points) { return Math.abs(signedArea(points)); }
 
+/** @param {Point[]} points */
 export function perimeter(points) {
   let sum = 0;
   for (let i = 0; i < points.length; i++) sum += dist(points[i], points[(i + 1) % points.length]);
   return sum;
 }
 
+/** @param {Point[]} points */
 export function centroid(points) {
   let area6 = 0, x = 0, y = 0;
   for (let i = 0; i < points.length; i++) {
@@ -55,6 +93,7 @@ export function makeCircle(cx = 470, cy = 335, radius = 115, count = 120) {
   return Array.from({ length: count }, (_, i) => ({ x: cx + radius * Math.cos(i * TAU / count), y: cy + radius * Math.sin(i * TAU / count) }));
 }
 
+/** @param {Point[]} points */
 export function resamplePolygon(points, count = 120) {
   if (points.length < 3) return points.map(copy);
   const lengths = points.map((p, i) => dist(p, points[(i + 1) % points.length]));
@@ -72,7 +111,7 @@ export function resamplePolygon(points, count = 120) {
   return out;
 }
 
-/** Close a brush stroke and sample its fixed material boundary at the chosen detail. */
+/** Close a brush stroke and sample its fixed material boundary. @param {PointInput[]} raw */
 export function prepareStroke(raw, count = 120) {
   count = Math.round(clamp(Number(count) || 120, 60, 480));
   const captureSpacing = 1.1 * Math.min(1, 120 / count);
@@ -138,6 +177,7 @@ function sweepSegmentPairs(segments, clearance, intersects) {
   return false;
 }
 
+/** @param {Point[]} points */
 export function hasSelfIntersection(points) {
   const n = points.length;
   if (n >= 80) {
@@ -156,6 +196,7 @@ export function hasSelfIntersection(points) {
   return false;
 }
 
+/** @param {Point} p @param {Point[]} points */
 export function pointInPolygon(p, points) {
   let inside = false;
   for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
@@ -166,6 +207,7 @@ export function pointInPolygon(p, points) {
   return inside;
 }
 
+/** @param {Point[]} points */
 export function bounds(points) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of points) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
@@ -178,6 +220,7 @@ function pointSegmentDistance(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
+/** @param {Point[]} a @param {Point[]} b */
 export function polygonsOverlap(a, b, clearance = 0) {
   const ba = bounds(a), bb = bounds(b);
   if (ba.maxX + clearance < bb.minX || bb.maxX + clearance < ba.minX || ba.maxY + clearance < bb.minY || bb.maxY + clearance < ba.minY) return false;
@@ -201,6 +244,7 @@ export function polygonsOverlap(a, b, clearance = 0) {
   return false;
 }
 
+/** @param {Omit<Field, 'id'>[]} fields @param {number} x @param {number} y */
 export function localFieldVelocity(fields, x, y, enabled = true) {
   let vx = 0, vy = 0;
   if (!enabled) return { x: 0, y: 0 };
@@ -220,6 +264,7 @@ export function localFieldVelocity(fields, x, y, enabled = true) {
   return { x: vx * scale, y: vy * scale };
 }
 
+/** @param {Point[]} points @param {number} targetArea */
 function correctedArea(points, targetArea) {
   const area = signedArea(points);
   if (area <= EPS) return points;
@@ -227,6 +272,7 @@ function correctedArea(points, targetArea) {
   return points.map(p => ({ x: center.x + (p.x - center.x) * scale, y: center.y + (p.y - center.y) * scale }));
 }
 
+/** @param {Point[]} points */
 function minimumEdge(points) {
   return Math.min(.22, ...points.map((p, i) => .15 * dist(p, points[(i + 1) % points.length])));
 }
@@ -234,6 +280,7 @@ function minimumEdge(points) {
 // Freeze the current edge lengths and treat the curvature Laplacian implicitly.
 // The cyclic tridiagonal solve is O(N), so finer boundaries need no O(N²) number
 // of explicit time steps. External forces and area pressure remain explicit.
+/** @param {Point[]} points @param {Point[]} velocities @param {number} gamma @param {number} h */
 function advanceSurface(points, velocities, gamma, h) {
   const n = points.length;
   const lower = new Float64Array(n), diagonal = new Float64Array(n), upper = new Float64Array(n);
@@ -278,6 +325,7 @@ function advanceSurface(points, velocities, gamma, h) {
 }
 
 export class Simulation {
+  /** @param {SimulationOptions} [options] */
   constructor(options = {}) {
     this.width = options.width ?? 1000;
     this.height = options.height ?? 680;
@@ -296,10 +344,13 @@ export class Simulation {
     this.reset();
   }
 
+  /** @param {CircleOptions} [options] */
   reset(options = {}) {
     this.defaults = { ...this.defaults, ...options };
     const { cx, cy, radius } = this.defaults;
+    /** @type {Shape[]} */
     this.shapes = [];
+    /** @type {Field[]} */
     this.fields = [];
     this.time = 0;
     this.blockedSteps = 0;
@@ -310,6 +361,7 @@ export class Simulation {
     return this;
   }
 
+  /** @param {Point[]} points @param {'surface' | 'kl'} kind @returns {Shape} */
   _newShape(points, kind) {
     return {
       id: `shape-${++this._shapeId}`,
@@ -325,6 +377,7 @@ export class Simulation {
     };
   }
 
+  /** @param {number | string} value */
   setSurfaceResolution(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return { ok: false, reason: '请选择有效的圆盘分辨率' };
@@ -355,6 +408,7 @@ export class Simulation {
     return { ok: true, shape };
   }
 
+  /** @param {PointInput[]} rawPoints */
   addDrawnShape(rawPoints) {
     const points = prepareStroke(rawPoints, this.settings.drawResolution ?? this.settings.sampleCount);
     if (points.length < 3 || polygonArea(points) < 700 || perimeter(points) < 80) return { ok: false, reason: '请画一个稍大的闭合区域' };
@@ -366,6 +420,7 @@ export class Simulation {
     return { ok: true, shape };
   }
 
+  /** @param {FieldInput} options */
   addField(options) {
     const field = {
       id: `field-${++this._fieldId}`,
@@ -378,9 +433,12 @@ export class Simulation {
     return field;
   }
 
+  /** @param {string} id */
   removeField(id) { this.fields = this.fields.filter(f => f.id !== id); }
+  /** @param {number} x @param {number} y */
   fieldAt(x, y) { return localFieldVelocity(this.fields, x, y, this.settings.fieldsEnabled); }
 
+  /** @param {Shape} shape */
   _velocities(shape) {
     const points = shape.points, n = points.length;
     const prior = clamp(Number(this.settings.priorStrength) || 0, 0, 3);
@@ -415,6 +473,7 @@ export class Simulation {
     });
   }
 
+  /** @param {Point[][]} candidates @param {Shape[]} [shapes] */
   _validCandidates(candidates, shapes = this.shapes) {
     for (let i = 0; i < candidates.length; i++) {
       const points = candidates[i], shape = shapes[i];
@@ -426,6 +485,7 @@ export class Simulation {
     return true;
   }
 
+  /** @param {number} dt */
   step(dt) {
     if (!Number.isFinite(dt) || dt <= 0) return;
     dt = Math.min(dt, .06); // Returning to a backgrounded tab cannot make a large jump.
