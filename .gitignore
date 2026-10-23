@@ -5,3 +5,6 @@ dist/
 *.log
 test-results/
 playwright-report/
+.wrangler/
+.dev.vars*
+.env*
