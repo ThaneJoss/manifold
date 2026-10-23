@@ -62,7 +62,7 @@ npm run preview  # 预览构建结果
 
 ## Cloudflare 部署
 
-项目通过 **Workers Static Assets** 托管 `dist/`，通过 **Workers Builds** 连接 GitHub 自动发布。前端和数值模拟全部在浏览器运行，不需要 Worker 后端、数据库或环境变量。
+项目通过 **Workers Static Assets** 托管 `dist/`，通过 **Workers Builds** 连接 GitHub：推送 `main` 自动发布到 **https://manifold.thanejoss.com**。前端和数值模拟全部在浏览器运行，不需要 Worker 后端、数据库或环境变量。
 
 在 Cloudflare **Workers & Pages** 中创建或选择 `manifold`，连接 `ThaneJoss/manifold`，使用以下构建设置：
 
@@ -72,10 +72,10 @@ npm run preview  # 预览构建结果
 | 根目录 | 仓库根目录 |
 | 构建命令 | 留空；Wrangler 根据 `build.command` 自动执行 `npm run build` |
 | 生产部署命令 | `npx wrangler deploy` |
-| 非生产分支预览命令 | `npx wrangler preview` |
+| 非生产分支预览 | 尚未开启；启用时使用 `npx wrangler preview` |
 | Node.js | 24，见 `.node-version` |
 
-Cloudflare 安装锁文件中的 npm 依赖，部署命令使用项目固定版本的 Wrangler。若控制台要求填写构建命令，可以填写 `npm run build`；随后 Wrangler 再次构建不会改变产物。启用 Preview Builds 后，非生产分支使用独立预览；`wrangler.jsonc` 中的空 `previews` 配置适用于本项目的纯静态资源。
+Cloudflare 安装锁文件中的 npm 依赖，部署命令使用项目固定版本的 Wrangler。若控制台要求填写构建命令，可以填写 `npm run build`；随后 Wrangler 再次构建不会改变产物。当前只自动部署生产分支，非生产分支预览尚未开启。`wrangler.jsonc` 保留适用于纯静态资源的空 `previews` 配置，后续启用 Preview Builds 时可直接使用。
 
 ```sh
 npm ci
@@ -86,7 +86,9 @@ npm run deploy         # 已配置 Cloudflare 认证时发布生产
 
 应用只有首页与页内锚点，没有客户端路径路由，因此不启用 SPA fallback；不存在的资源或路径返回 404。仓库配置只发布 `dist/`，不会上传源码、测试或 `node_modules`。
 
-首次发布后，在 Worker 的 **Settings → Domains & Routes** 绑定原有自定义域名，并核对页面、静态资源与 HTTPS。自定义域名由 Cloudflare 控制台管理，配置文件没有生产路由；分支预览不切换生产域名。后续推送 `main` 由 Workers Builds 自动发布，GitHub Actions 保留现有质量检查职责，不承担部署。
+`wrangler.jsonc` 声明原有自定义域名 `manifold.thanejoss.com`，生产发布时由 Wrangler 应用域名绑定，同时保留 `workers.dev` 地址。部署账户需拥有 `thanejoss.com` zone；首次切换后核对页面、静态资源与 HTTPS。生产域名配置位于顶层，不放入 `previews`。GitHub Actions 保留现有质量检查职责，不承担部署。
+
+`vercel.json` 关闭 Vercel 的 Git 自动部署，避免后续提交同时发布到两个平台；已有 Vercel 项目和部署保留，可在需要时恢复原有域名指向用于回退。
 
 参考：[Static Assets](https://developers.cloudflare.com/workers/static-assets/)、[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)、[Worker Previews](https://developers.cloudflare.com/workers/previews/)。
 
