@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "manifold",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "manifold.thanejoss.com", "custom_domain": true }
+  ],
+  "build": {
+    "command": "npm run build"
+  },
+  "assets": {
+    "directory": "./dist"
+  },
+  "previews": {}
+}
