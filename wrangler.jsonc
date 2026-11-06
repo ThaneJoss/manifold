@@ -4,7 +4,7 @@
   "compatibility_date": "2026-10-23",
   "workers_dev": true,
   "routes": [
-    { "pattern": "manifold.thanejoss.com", "custom_domain": true }
+    { "pattern": "manifold.thanejoss.com/*", "zone_name": "thanejoss.com" }
   ],
   "build": {
     "command": "npm run build"
@@ -14,3 +14,4 @@
   },
   "previews": {}
 }
+
