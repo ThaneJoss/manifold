@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Simulation, pointInPolygon } from './physics.js';
 import { renderScene, resizeCanvas } from './renderScene.js';
+import { createFrameLoop } from './frameLoop.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const resolution = value => clamp(Math.round(Number(value) / 30) * 30, 60, 480);
@@ -40,13 +41,15 @@ export function useShapeFlow() {
   const gestureRef = useRef(null);
   const hoverRef = useRef(null);
   const toastTimerRef = useRef(null);
+  const invalidateRef = useRef(() => {});
   const [state, setState] = useState(initialState);
   const stateRef = useRef(state);
 
-  function patch(changes) {
+  function patch(changes, redraw = true) {
     const next = { ...stateRef.current, ...changes };
     stateRef.current = next;
     setState(next);
+    if (redraw) invalidateRef.current();
   }
 
   function notify(message) {
@@ -57,7 +60,7 @@ export function useShapeFlow() {
 
   function refreshMetrics() {
     const sim = simulationRef.current;
-    if (sim) patch({ metrics: { ...sim.metrics(), lastBlocked: sim.lastBlocked }, time: sim.time });
+    if (sim) patch({ metrics: { ...sim.metrics(), lastBlocked: sim.lastBlocked }, time: sim.time }, false);
   }
 
   function selectedField() {
@@ -71,6 +74,7 @@ export function useShapeFlow() {
     const canvas = canvasRef.current;
     if (gesture && canvas?.hasPointerCapture(gesture.pointerId)) canvas.releasePointerCapture(gesture.pointerId);
     if (stateRef.current.cursor !== 'crosshair') patch({ cursor: 'crosshair' });
+    invalidateRef.current();
   }
 
   function setMode(mode, panel = mode === 'brush' ? 'brush' : 'field') {
@@ -239,6 +243,7 @@ export function useShapeFlow() {
     if (!simulationRef.current || !cameraRef.current) return;
     const point = worldPoint(event);
     hoverRef.current = point;
+    invalidateRef.current();
     const gesture = gestureRef.current;
     if (!gesture) {
       const cursor = stateRef.current.mode === 'arrow' && hitField(point) ? 'grab' : 'crosshair';
@@ -321,7 +326,7 @@ export function useShapeFlow() {
     if (gestureRef.current?.pointerId === event.pointerId) cancelGesture();
   }
 
-  function onPointerLeave() { hoverRef.current = null; }
+  function onPointerLeave() { hoverRef.current = null; invalidateRef.current(); }
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -334,30 +339,24 @@ export function useShapeFlow() {
     const sim = new Simulation({ width: worldWidth, height: worldHeight, cx: worldWidth * .5, cy: portrait ? worldHeight * .68 : 335, radius: portrait ? 178 : 115 });
     simulationRef.current = sim;
     const context = canvas.getContext('2d');
-    const resize = () => { cameraRef.current = resizeCanvas(canvas, sim); };
+    const loop = createFrameLoop({
+      isRunning: () => stateRef.current.playing && !gestureRef.current && !stateRef.current.aboutOpen,
+      isVisible: () => !document.hidden,
+      step: dt => sim.step(dt),
+      render: () => renderScene(context, sim, { ...stateRef.current, camera: cameraRef.current, gesture: gestureRef.current, hover: hoverRef.current }),
+      refreshMetrics,
+    });
+    invalidateRef.current = loop.invalidate;
+    const resize = () => {
+      cameraRef.current = resizeCanvas(canvas, sim);
+      loop.invalidate();
+    };
     const observer = new ResizeObserver(resize);
     observer.observe(workspace);
     resize();
     refreshMetrics();
 
-    let previousTime = 0;
-    let uiElapsed = 0;
-    let animationFrame;
-    function frame(timestamp) {
-      const dt = previousTime ? Math.min((timestamp - previousTime) / 1000, .05) : 0;
-      previousTime = timestamp;
-      const current = stateRef.current;
-      if (current.playing && !gestureRef.current && !current.aboutOpen && !document.hidden && dt > 0) sim.step(dt);
-      uiElapsed += dt;
-      if (uiElapsed > .12) {
-        refreshMetrics();
-        uiElapsed = 0;
-      }
-      renderScene(context, sim, { ...current, camera: cameraRef.current, gesture: gestureRef.current, hover: hoverRef.current });
-      animationFrame = requestAnimationFrame(frame);
-    }
-
-    function onVisibilityChange() { previousTime = 0; }
+    function onVisibilityChange() { loop.invalidate(); }
     function onKeyDown(event) {
       const target = event.target;
       if (stateRef.current.aboutOpen || /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName) || target.isContentEditable || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -376,9 +375,9 @@ export function useShapeFlow() {
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    animationFrame = requestAnimationFrame(frame);
     return () => {
-      cancelAnimationFrame(animationFrame);
+      loop.dispose();
+      invalidateRef.current = () => {};
       observer.disconnect();
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('visibilitychange', onVisibilityChange);

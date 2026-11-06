@@ -12,7 +12,7 @@
     "deploy:check": "wrangler deploy --dry-run",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -p jsconfig.json",
-    "test": "node --test src/physics.test.js",
+    "test": "node --test src/*.test.js",
     "test:e2e": "playwright test"
   },
   "dependencies": {

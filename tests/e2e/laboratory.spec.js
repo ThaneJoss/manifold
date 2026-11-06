@@ -135,3 +135,53 @@ test('main controls, settings and model dialog meet automated WCAG checks', asyn
   await expect(page.getByRole('dialog')).toBeVisible();
   await scan();
 });
+
+test('paused canvas sleeps between edits and wakes for controls, resize and playback', async ({ page }) => {
+  await page.addInitScript(() => {
+    const clearRect = CanvasRenderingContext2D.prototype.clearRect;
+    CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+      if (this.canvas.id === 'scene') {
+        this.canvas.dataset.draws = String(Number(this.canvas.dataset.draws || 0) + 1);
+      }
+      return clearRect.apply(this, args);
+    };
+  });
+  await page.reload();
+  const canvas = page.locator('#scene');
+  const draws = async () => Number(await canvas.getAttribute('data-draws'));
+  const expectIdle = async () => {
+    // Let resize/React work settle, then observe a period longer than the former
+    // 120ms metrics interval. No canvas work should occur without an interaction.
+    await page.waitForTimeout(200);
+    const before = await draws();
+    await page.waitForTimeout(300);
+    expect(await draws()).toBe(before);
+  };
+  await expect.poll(draws).toBeGreaterThan(0);
+  await expectIdle();
+
+  let before = await draws();
+  await page.locator('#referenceToggle').uncheck();
+  await expect.poll(draws).toBeGreaterThan(before);
+  await expectIdle();
+
+  await addVelocityField(page);
+  await page.locator('#closeFieldPanel').click();
+  await expectIdle();
+
+  before = await draws();
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: size.width - 10, height: size.height });
+  await expect.poll(draws).toBeGreaterThan(before);
+  await expectIdle();
+
+  await page.locator('#playButton').click();
+  await expect.poll(async () => Number(await page.locator('#timeDisplay').textContent())).toBeGreaterThan(0);
+  await page.locator('#playButton').click();
+  await expectIdle();
+
+  await page.locator('#resetButton').click();
+  await expect(page.locator('#timeDisplay')).toHaveText('0.0');
+  await expect(page.locator('#fieldCount')).toHaveText('0');
+  await expectIdle();
+});
