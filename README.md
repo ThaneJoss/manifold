@@ -86,9 +86,9 @@ npm run deploy         # 已配置 Cloudflare 认证时发布生产
 
 应用只有首页与页内锚点，没有客户端路径路由，因此不启用 SPA fallback；不存在的资源或路径返回 404。仓库配置只发布 `dist/`，不会上传源码、测试或 `node_modules`。
 
-`wrangler.jsonc` 声明原有自定义域名 `manifold.thanejoss.com`，生产发布时由 Wrangler 应用域名绑定，同时保留 `workers.dev` 地址。部署账户需拥有 `thanejoss.com` zone；首次切换后核对页面、静态资源与 HTTPS。生产域名配置位于顶层，不放入 `previews`。GitHub Actions 保留现有质量检查职责，不承担部署。
+`wrangler.jsonc` 在顶层 `routes` 声明普通 Worker Route `manifold.thanejoss.com/*`，与现有路由一致，同时保留 `workers.dev` 地址。生产域名沿用现有 CNAME 记录及边缘入口配置，不创建 Custom Domain，也不修改 DNS 记录、目标或代理状态。部署账户需拥有 `thanejoss.com` zone；发布后通过实际域名请求验证边缘入口、页面、静态资源与 HTTPS。生产路由配置位于顶层，不放入 `previews`。GitHub Actions 保留现有质量检查职责，不承担部署。
 
-`vercel.json` 关闭 Vercel 的 Git 自动部署，避免后续提交同时发布到两个平台；已有 Vercel 项目和部署保留，可在需要时恢复原有域名指向用于回退。
+`vercel.json` 关闭 Vercel 的 Git 自动部署，避免后续提交同时发布到两个平台；已有 Vercel 项目和部署保留，平台回退方案需单独协调，不随本配置改动 DNS 或移除现有 Worker Route。
 
 参考：[Static Assets](https://developers.cloudflare.com/workers/static-assets/)、[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)、[Worker Previews](https://developers.cloudflare.com/workers/previews/)。
 
@@ -112,3 +112,4 @@ npm run test:e2e
 类型门禁通过 TypeScript 的 `checkJs` 检查现有 JavaScript / JSX、配置和测试，保留 JavaScript 项目结构；当前未启用严格空值和隐式 any 检查。控件参数及核心几何类型使用 JSDoc，复杂交互仍由浏览器测试覆盖。TypeScript 暂用 6.x，以兼容 ESLint React 插件的编译器 API；依赖按锁文件安装，升级时一起提交 `package.json` 和 `package-lock.json`。
 
 单元测试覆盖碰撞保护、非法轮廓拒绝、分辨率变更与回滚、面积守恒及 KL 回复。浏览器测试覆盖分辨率键盘提交、场的增删、模型对话框焦点、减少动态效果、320px 窄屏开关和 axe 扫描。CI 不含 GPU、数据集下载或长时数值实验；没有全局微分同胚证明或长期稳定性保证。
+
