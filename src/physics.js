@@ -496,17 +496,19 @@ export class Simulation {
       const h = Math.min(remaining, 1 / 180);
       const gamma = this.settings.surfaceTension * clamp(Number(this.settings.priorStrength) || 0, 0, 3);
       const velocities = this.shapes.map(shape => this._velocities(shape));
+      /** @param {Shape} shape @param {number} si @param {number} scale */
+      const advanceShape = (shape, si, scale) => {
+        let points = shape.kind === 'surface' && gamma > 0
+          ? advanceSurface(shape.points, velocities[si], gamma, h * scale)
+          : shape.points.map((p, pi) => ({ x: p.x + velocities[si][pi].x * h * scale, y: p.y + velocities[si][pi].y * h * scale }));
+        // Fixed enclosed area is a separate hard constraint of the droplet.
+        if (shape.kind === 'surface') points = correctedArea(points, shape.initialArea);
+        return points;
+      };
       let accepted = false;
       for (let backtrack = 0; backtrack < 9; backtrack++) {
         const scale = 2 ** -backtrack;
-        const candidates = this.shapes.map((shape, si) => {
-          let points = shape.kind === 'surface' && gamma > 0
-            ? advanceSurface(shape.points, velocities[si], gamma, h * scale)
-            : shape.points.map((p, pi) => ({ x: p.x + velocities[si][pi].x * h * scale, y: p.y + velocities[si][pi].y * h * scale }));
-          // Fixed enclosed area is a separate hard constraint of the droplet.
-          if (shape.kind === 'surface') points = correctedArea(points, shape.initialArea);
-          return points;
-        });
+        const candidates = this.shapes.map((shape, si) => advanceShape(shape, si, scale));
         if (this._validCandidates(candidates)) {
           this.shapes.forEach((shape, i) => { shape.points = candidates[i]; });
           accepted = true;
@@ -514,7 +516,31 @@ export class Simulation {
           break;
         }
       }
-      if (!accepted) { this.lastBlocked = true; this.blockedSteps++; }
+      if (!accepted) {
+        this.lastBlocked = true;
+        this.blockedSteps++;
+        // A blocked region must not stop unrelated regions. Start from the
+        // unchanged scene, then validate each move against all retained shapes.
+        // This also checks collisions with regions that could not move.
+        if (this.shapes.length > 1) {
+          const candidates = this.shapes.map(shape => shape.points);
+          let advanced = false;
+          for (let si = 0; si < this.shapes.length; si++) {
+            const shape = this.shapes[si];
+            for (let backtrack = 0; backtrack < 9; backtrack++) {
+              candidates[si] = advanceShape(shape, si, 2 ** -backtrack);
+              if (this._validCandidates(candidates)) {
+                advanced = true;
+                break;
+              }
+              candidates[si] = shape.points;
+            }
+          }
+          if (advanced && this._validCandidates(candidates)) {
+            this.shapes.forEach((shape, i) => { shape.points = candidates[i]; });
+          }
+        }
+      }
       remaining -= h;
     }
     this.time += dt - Math.max(0, remaining);

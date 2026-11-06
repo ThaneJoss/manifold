@@ -142,3 +142,73 @@ test('large frame delays stay bounded and collision backtracking keeps the dropl
   for (const dt of [0, -1, NaN, Infinity]) sim.step(dt);
   assert.deepEqual({ points: sim.shapes[0].points, time: sim.time }, before);
 });
+
+test('a wall-blocked droplet does not freeze a distant shape', () => {
+  const sim = new Simulation({ cx: 119.01 });
+  const result = sim.addDrawnShape(makeCircle(800, 180, 45, 32));
+  assert.equal(result.ok, true);
+  const drawn = result.shape;
+  const reference = structuredClone(drawn.reference);
+  const initialCenter = centroid(drawn.points);
+  sim.addField({ x: 119, y: 335, dx: -80, dy: 0, strength: 3, radius: 60 });
+  sim.addField({ x: 800, y: 180, dx: 80, dy: 0, strength: 2, radius: 60 });
+
+  for (let i = 0; i < 60; i++) sim.step(1 / 60);
+
+  assert.equal(sim.lastBlocked, true);
+  assert.ok(sim.blockedSteps > 0);
+  assert.ok(centroid(drawn.points).x > initialCenter.x + 30);
+  assert.deepEqual(drawn.reference, reference);
+  approximately(sim.metrics().areaRatio, 1);
+  assert.equal(polygonsOverlap(sim.shapes[0].points, drawn.points, sim.settings.clearance), false);
+  for (const shape of sim.shapes) {
+    assert.equal(hasSelfIntersection(shape.points), false);
+    assert.ok(shape.points.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)
+      && p.x >= 4 && p.x <= sim.width - 4 && p.y >= 4 && p.y <= sim.height - 4));
+  }
+});
+
+test('independent moves keep clearance from shapes rolled back to rest', () => {
+  for (const reverse of [false, true]) {
+    const sim = new Simulation({ settings: { priorStrength: 0 } });
+    // Exact rectangles and constant velocities isolate collision rollback from
+    // brush smoothing and force variation. Each full substep moves left by 1px.
+    const wall = sim._newShape(rectangle(4, 100, 30, 30), 'kl');
+    const following = sim._newShape(rectangle(37.000001, 100, 30, 30), 'kl');
+    const free = sim._newShape(rectangle(200, 100, 30, 30), 'kl');
+    sim.shapes = reverse ? [following, wall, free] : [wall, following, free];
+    sim._velocities = shape => shape.points.map(() => ({ x: -180, y: 0 }));
+    const beforeWall = structuredClone(wall.points);
+    const beforeFollowing = structuredClone(following.points);
+    const freeCenter = centroid(free.points);
+
+    sim.step(1 / 180);
+
+    assert.deepEqual(wall.points, beforeWall);
+    assert.deepEqual(following.points, beforeFollowing);
+    approximately(centroid(free.points).x, freeCenter.x - 1);
+    assert.equal(sim.lastBlocked, true);
+    for (let i = 0; i < sim.shapes.length; i++) {
+      for (let j = 0; j < i; j++) {
+        assert.equal(polygonsOverlap(sim.shapes[i].points, sim.shapes[j].points, sim.settings.clearance), false);
+      }
+    }
+  }
+});
+
+test('nearby shapes retain their full common step when it is safe', () => {
+  const sim = new Simulation({ settings: { priorStrength: 0 } });
+  const leading = sim._newShape(rectangle(100, 100, 30, 30), 'kl');
+  const following = sim._newShape(rectangle(133.000001, 100, 30, 30), 'kl');
+  // The follower cannot take a full step against a stationary leader.
+  sim.shapes = [following, leading];
+  sim._velocities = shape => shape.points.map(() => ({ x: -180, y: 0 }));
+  const centers = sim.shapes.map(shape => centroid(shape.points));
+
+  sim.step(1 / 180);
+
+  sim.shapes.forEach((shape, i) => approximately(centroid(shape.points).x, centers[i].x - 1));
+  assert.equal(sim.lastBlocked, false);
+  assert.equal(sim.blockedSteps, 0);
+  assert.equal(polygonsOverlap(leading.points, following.points, sim.settings.clearance), false);
+});
